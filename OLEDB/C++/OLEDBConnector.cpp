@@ -3,6 +3,7 @@
 /*
 Âü°í
 https://webnautes.tistory.com/702
+https://www.codeproject.com/Articles/10236/Database-Development-using-Visual-C-and-OLE-DB-Est
 */
 
 #include<atldbcli.h>
