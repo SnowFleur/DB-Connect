@@ -2,51 +2,43 @@
 
 /*
 참고
-https://webnautes.tistory.com/702
-https://www.codeproject.com/Articles/10236/Database-Development-using-Visual-C-and-OLE-DB-Est
+- https://webnautes.tistory.com/702
+- https://www.codeproject.com/Articles/10236/Database-Development-using-Visual-C-and-OLE-DB-Est
 */
 
 #include<atldbcli.h>
 #include<iostream>
 
-class CState
-{
-private:
+class CUserAcount {
 public:
-	//데이터를 저장할 자료형
-	char ip[20];
-	char data[20];
-	char time[20];
-
+	char FLD_ID[10];
+	char FLD_PW[10];
 public:
-	BEGIN_COLUMN_MAP(CState)
-		COLUMN_ENTRY(1,ip)
-		COLUMN_ENTRY(1,data)
-		COLUMN_ENTRY(1,time)
+	BEGIN_COLUMN_MAP(CUserAcount)
+		COLUMN_ENTRY(1, FLD_ID)
+		COLUMN_ENTRY(1, FLD_PW)
 	END_COLUMN_MAP()
-
 };
 
 //OLEDB 객체 선언
 CDataSource ds;
 CSession	session;
-CCommand<CAccessor<CState>> cust;
+CCommand<CAccessor<CUserAcount>> cust;
 
 /*
 To do(순서)
-- MSSQL 연동 테스트		--> OK
-- Raw Query 테스트		--> Curr
-- SP 테스트
+- MSSQL 연동 테스트		--> 0k
+- Raw Query 테스트		--> Ok
+- SP 테스트				--> Curr
 */
 
-namespace SnowOELDB{}
+namespace SnowOELDB {}
 
 namespace SnowRedis {}
 
 
 
-bool SQLServerConnect( const WCHAR* pDataBase, const WCHAR* pSQLServer, const WCHAR* pAuthUserID, const WCHAR* pAuthUserPW )
-{
+bool SQLServerConnect(const WCHAR* pDataBase, const WCHAR* pSQLServer, const WCHAR* pAuthUserID, const WCHAR* pAuthUserPW) {
 	HRESULT hr = CoInitialize(0);
 
 	WCHAR arrSqlCoonect[1024];
@@ -70,8 +62,7 @@ bool SQLServerConnect( const WCHAR* pDataBase, const WCHAR* pSQLServer, const WC
 	//SQL Server 연결시도
 	hr = ds.Open(L"SQLOLEDB", &dbinit);
 
-	if (FAILED(hr))
-	{
+	if (FAILED(hr)) {
 		std::cout << "SQL Server와 연결을 실패했습니다\n";
 		return false;
 	}
@@ -79,19 +70,43 @@ bool SQLServerConnect( const WCHAR* pDataBase, const WCHAR* pSQLServer, const WC
 	//세션을 시작
 	hr = session.Open(ds);
 
-	if (FAILED(hr)) 
-	{
+	if (FAILED(hr)) {
 		std::cout << "session.Open 에러\n";
 		return false;
 	}
-
 
 	std::cout << "SQL Server Connect!\n";
 	return true;
 }
 
-int main()
-{
+
+void SendRawQuery() {
+
+	TCHAR myQuery[] = L"SELECT * FROM DBO.UserAccount";
+	HRESULT hr = CoInitialize(0);
+
+	//Open DB
+	hr = cust.Open(session, myQuery);
+
+	if (FAILED(hr)) {
+		std::cout << " 테이블을 열 수 없습니다.\n";
+
+	}
+	else {
+
+		//read all data
+		while (cust.MoveNext() == S_OK) {
+			std::cout << "ID:" << cust.FLD_ID << " ," << "PW:" << cust.FLD_PW << "\n";
+		}
+	}
+
+	cust.Close();
+	session.Close();
+	ds.Close();
+
+}
+
+int main() {
 
 }
 
