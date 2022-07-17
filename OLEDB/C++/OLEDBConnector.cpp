@@ -1,45 +1,73 @@
-#pragma once
+Ôªø#pragma once
+
+#define _CRT_SECURE_NO_WARNINGS
 
 /*
-¬¸∞Ì
+Ï∞∏Í≥†
 - https://webnautes.tistory.com/702
 - https://www.codeproject.com/Articles/10236/Database-Development-using-Visual-C-and-OLE-DB-Est
+- https://stackoverflow.com/questions/8827297/unable-to-execute-stored-procedures-through-oledb
 */
 
 #include<atldbcli.h>
 #include<iostream>
+#include <atlstr.h>
+
 
 class CUserAcount {
+	//DEFINE_COMMAND_EX(CUserAcount, _T("{call dbo.sp_AddUserAccount (?,?) }"))	//ÏûëÎèôÏùÑ ÏïàÌïòÎÑ§ „Ö°„Ö°
+public:
+	WCHAR FLD_ID[10];
+	WCHAR FLD_PW[10];
+public:
+	BEGIN_PARAM_MAP(CUserAcount)
+		SET_PARAM_TYPE(DBPARAMIO_INPUT)
+		COLUMN_ENTRY(1, FLD_ID)		// First ?
+		SET_PARAM_TYPE(DBPARAMIO_INPUT)
+		COLUMN_ENTRY(2, FLD_PW)		// Second ?
+	END_PARAM_MAP()
+};
+
+class SP_AddUserAccount : public CCommand<CAccessor<CUserAcount>> {
+public:
+	void SetValue(const WCHAR* pID, const WCHAR* pPW)
+	{
+		if (pID == nullptr) return;
+		if (pPW == nullptr) return;
+
+		wmemcpy_s(FLD_ID, 10, pID, 10);
+		wmemcpy_s(FLD_PW, 10, pPW, 10);
+	}
+};
+
+class CUserAcount2 {	//Raw ÏøºÎ¶¨
 public:
 	char FLD_ID[10];
 	char FLD_PW[10];
 public:
-	BEGIN_COLUMN_MAP(CUserAcount)
+	BEGIN_COLUMN_MAP(CUserAcount2)
 		COLUMN_ENTRY(1, FLD_ID)
-		COLUMN_ENTRY(1, FLD_PW)
+		COLUMN_ENTRY(2, FLD_PW)
 	END_COLUMN_MAP()
+
 };
 
-//OLEDB ∞¥√º º±æ
+
+//OLEDB Í∞ùÏ≤¥ ÏÑ†Ïñ∏
 CDataSource ds;
 CSession	session;
-CCommand<CAccessor<CUserAcount>> cust;
+HRESULT hr = CoInitialize(0);
+
 
 /*
-To do(º¯º≠)
-- MSSQL ø¨µø ≈◊Ω∫∆Æ		--> 0k
-- Raw Query ≈◊Ω∫∆Æ		--> Ok
-- SP ≈◊Ω∫∆Æ				--> Curr
+To do(ÏàúÏÑú)
+- MSSQL Ïó∞Îèô ÌÖåÏä§Ìä∏		--> OK
+- Raw Query ÌÖåÏä§Ìä∏		--> OK
+- SP ÌÖåÏä§Ìä∏				--> OK
 */
-
-namespace SnowOELDB {}
-
-namespace SnowRedis {}
-
 
 
 bool SQLServerConnect(const WCHAR* pDataBase, const WCHAR* pSQLServer, const WCHAR* pAuthUserID, const WCHAR* pAuthUserPW) {
-	HRESULT hr = CoInitialize(0);
 
 	WCHAR arrSqlCoonect[1024];
 	ZeroMemory(arrSqlCoonect, sizeof(arrSqlCoonect));
@@ -58,20 +86,21 @@ bool SQLServerConnect(const WCHAR* pDataBase, const WCHAR* pSQLServer, const WCH
 	//AuthUserPW
 	if (dbinit.AddProperty(DBPROP_AUTH_PASSWORD, pAuthUserPW) == false) return false;
 
+	//SQL Server Ïó∞Í≤∞ÏãúÎèÑ
+	//hr = ds.Open(L"SQLOLEDB", &dbinit);
+	hr = ds.Open(L"MSOLEDBSQL", &dbinit);
 
-	//SQL Server ø¨∞·Ω√µµ
-	hr = ds.Open(L"SQLOLEDB", &dbinit);
 
 	if (FAILED(hr)) {
-		std::cout << "SQL ServerøÕ ø¨∞·¿ª Ω«∆–«ﬂΩ¿¥œ¥Ÿ\n";
+		std::cout << "SQL ServerÏôÄ Ïó∞Í≤∞ÏùÑ Ïã§Ìå®ÌñàÏäµÎãàÎã§\n";
 		return false;
 	}
 
-	//ººº«¿ª Ω√¿€
+	//ÏÑ∏ÏÖòÏùÑ ÏãúÏûë
 	hr = session.Open(ds);
 
 	if (FAILED(hr)) {
-		std::cout << "session.Open ø°∑Ø\n";
+		std::cout << "session.Open ÏóêÎü¨\n";
 		return false;
 	}
 
@@ -79,17 +108,35 @@ bool SQLServerConnect(const WCHAR* pDataBase, const WCHAR* pSQLServer, const WCH
 	return true;
 }
 
+void SendSP(const WCHAR* pID, const WCHAR* pPW) {
+		
+	SP_AddUserAccount accountUserSP;
+
+	accountUserSP.SetValue(pID, pPW);
+	//Ï£ºÎßê ÎÇ¥ÎÇ¥ „Ö†
+	hr = accountUserSP.Open(session, _T("{call dbo.sp_AddUserAccount (?,?) }"));
+
+	if (FAILED(hr)) {
+		std::cout << "SP Ïã§Ìå®\n";
+	}
+
+	else {
+		std::cout << "SP ÏÑ±Í≥µ\n";
+	}
+	accountUserSP.ReleaseCommand();
+	accountUserSP.Close();
+}
 
 void SendRawQuery() {
 
-	TCHAR myQuery[] = L"SELECT * FROM DBO.UserAccount";
-	HRESULT hr = CoInitialize(0);
+	TCHAR myQuery[] = L"SELECT * FROM dbo.UserAccount";
+	CCommand<CAccessor<CUserAcount2>> cust;
 
 	//Open DB
 	hr = cust.Open(session, myQuery);
 
 	if (FAILED(hr)) {
-		std::cout << " ≈◊¿Ã∫Ì¿ª ø≠ ºˆ æ¯Ω¿¥œ¥Ÿ.\n";
+		std::cout << " ÌÖåÏù¥Î∏îÏùÑ Ïó¥ Ïàò ÏóÜÏäµÎãàÎã§.\n";
 
 	}
 	else {
